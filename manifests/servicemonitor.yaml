@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    k8s-app: ci-operator-result-aggregation-server
+  name: ci-operator-result-aggregation-server
+  namespace: ci-operator-result-aggregation-server
+spec:
+  endpoints:
+    - bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
+      interval: 30s
+      port: https
+      scheme: https
+      tlsConfig:
+        caFile: /etc/prometheus/configmaps/serving-certs-ca-bundle/service-ca.crt
+        serverName: ci-operator-result-aggregation-server.ci-operator-result-aggregation-server.svc
+  namespaceSelector:
+    matchNames:
+      - ci-operator-result-aggregation-server
+  selector:
+    matchLabels:
+      k8s-app: ci-operator-result-aggregation-server

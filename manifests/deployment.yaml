@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ci-operator-result-aggregation-server
+  namespace: ci-operator-result-aggregation-server
+  labels:
+    k8s-app: ci-operator-result-aggregation-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      k8s-app: ci-operator-result-aggregation-server
+  template:
+    metadata:
+      labels:
+        k8s-app: ci-operator-result-aggregation-server
+    spec:
+      serviceAccountName: ci-operator-result-aggregation-server
+      containers:
+      - name: kube-rbac-proxy
+        image: quay.io/openshift/origin-kube-rbac-proxy:4.2.0
+        args:
+        - "--secure-listen-address=0.0.0.0:8443"
+        - "--upstream=http://localhost:8080/"
+        - "--tls-cert-file=/etc/tls/private/tls.crt"
+        - "--tls-private-key-file=/etc/tls/private/tls.key"
+        - "--config-file=/etc/kube-rbac-proxy/config-file.yaml"
+        - "--logtostderr=true"
+        - "--v=10"
+        ports:
+        - containerPort: 8443
+          name: https
+        volumeMounts:
+        - name: config
+          mountPath: /etc/kube-rbac-proxy
+        - mountPath: /etc/tls/private
+          name: ci-operator-result-aggregation-server-tls
+      - name: ci-operator-result-aggregation-server
+        image: docker.io/gofed/ci-operator-result-aggregation-server:20200422
+        command:
+        - "/usr/bin/ci-operator-result-aggregation-server"
+        env:
+        - name: METRICS_PORT
+          value: "8080"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 200Mi
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      restartPolicy: Always
+      tolerations:
+      - key: "node-role.kubernetes.io/master"
+        operator: "Exists"
+        effect: "NoSchedule"
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 120
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 120
+      volumes:
+      - name: config
+        configMap:
+          name: kube-rbac-proxy
+      - name: ci-operator-result-aggregation-server-tls
+        secret:
+          secretName: ci-operator-result-aggregation-server-tls
